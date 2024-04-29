@@ -1,46 +1,50 @@
 #!/usr/bin/python3
-"""Endpoint (route) will be to return the status of your API"""
+'''Contains a Flask web application API.
+'''
 import os
-from flask import Flask
-from models import storage
-from api.v1.views import app_views
+from flask import Flask, jsonify
 from flask_cors import CORS
 
+from models import storage
+from api.v1.views import app_views
 
-# creating a Flask app
+
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "0.0.0.0"}})
-
-
-app.register_blueprint(app_views, url_prefix="/api/v1")
-
-
-@app.errorhandler(404)
-def page_not_found(e):
-    return {"error": "Not found"}, 404
-
-
-@app.errorhandler(400)
-def page_not_found(e):
-    message = e.description
-    return message, 400
+'''The Flask web application instance.'''
+app_host = os.getenv('HBNB_API_HOST', '0.0.0.0')
+app_port = int(os.getenv('HBNB_API_PORT', '5000'))
+app.url_map.strict_slashes = False
+app.register_blueprint(app_views)
+CORS(app, resources={'/*': {'origins': app_host}})
 
 
 @app.teardown_appcontext
-def close(ctx):
+def teardown_flask(exception):
+    '''The Flask app/request context end event listener.'''
+    # print(exception)
     storage.close()
 
 
-if os.getenv("HBNB_API_HOST"):
-    HOST = os.getenv("HBNB_API_HOST")
-else:
-    HOST = "0.0.0.0"
-
-if os.getenv("HBNB_API_PORT"):
-    PORT = int(os.getenv("HBNB_API_PORT"))
-else:
-    PORT = 5000
+@app.errorhandler(404)
+def error_404(error):
+    '''Handles the 404 HTTP error code.'''
+    return jsonify(error='Not found'), 404
 
 
-if __name__ == "__main__":
-    app.run(host=HOST, port=PORT, threaded=True)
+@app.errorhandler(400)
+def error_400(error):
+    '''Handles the 400 HTTP error code.'''
+    msg = 'Bad request'
+    if isinstance(error, Exception) and hasattr(error, 'description'):
+        msg = error.description
+    return jsonify(error=msg), 400
+
+
+if __name__ == '__main__':
+    app_host = os.getenv('HBNB_API_HOST', '0.0.0.0')
+    app_port = int(os.getenv('HBNB_API_PORT', '5000'))
+    app.run(
+        host=app_host,
+        port=app_port,
+        threaded=True
+    )
